@@ -18,9 +18,9 @@ jobs:
     - uses: actions/cache@v2
       with:
         path: /tmp/.buildx-cache
-        key: ${{ runner.os }}-buildx-${{ matrix.nginx }}-${{ github.sha }}
+        key: ${{ runner.os }}-buildx-${{ github.run_number }}-${{ matrix.nginx }}-${{ github.sha }}
         restore-keys: |
-          ${{ runner.os }}-buildx-${{ matrix.nginx }}-
+          ${{ runner.os }}-buildx-${{ github.run_number }}-${{ matrix.nginx }}-
     - uses: docker/login-action@v1
       with:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
