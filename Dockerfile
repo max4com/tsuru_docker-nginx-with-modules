@@ -6,11 +6,11 @@ SHELL ["/bin/bash", "-c"]
 RUN set -x \
     && apt-get update \
     && apt-get install -y --no-install-suggests \
-       libluajit-5.1-dev libpam0g-dev zlib1g-dev libpcre3-dev \
+       libluajit-5.1-dev libpam0g-dev zlib1g-dev libpcre3 libpcre3-dev \
        libexpat1-dev git curl build-essential libxml2 libxslt1.1 libxslt1-dev autoconf libtool libssl-dev \
-       unzip libmaxminddb-dev
+       unzip libmaxminddb-dev libgeoip-dev uuid-dev
 
-ARG modsecurity_version=v3.0.3
+ARG modsecurity_version=v3.0.6
 RUN set -x \
     && git clone --depth 1 -b ${modsecurity_version} https://github.com/SpiderLabs/ModSecurity.git /usr/local/src/modsecurity \
     && cd /usr/local/src/modsecurity \
@@ -21,7 +21,7 @@ RUN set -x \
     && make \
     && make install
 
-ARG owasp_modsecurity_crs_version=v3.1.0
+ARG owasp_modsecurity_crs_version=v3.2.0
 RUN set -x \
     && nginx_modsecurity_conf_dir="/usr/local/etc/modsecurity" \
     && mkdir -p ${nginx_modsecurity_conf_dir} \
@@ -31,10 +31,10 @@ RUN set -x \
     && mv owasp-modsecurity-crs{-${owasp_modsecurity_crs_version#v},} \
     && cd -
 
-ARG openresty_package_version=1.19.9.1-1~buster1
+ARG openresty_package_version=1.19.9.1-1~bullseye1
 RUN set -x \
     && curl -sS https://openresty.org/package/pubkey.gpg | apt-key add - \
-    && echo 'deb https://openresty.org/package/debian buster openresty' | tee -a /etc/apt/sources.list.d/openresty.list \
+    && echo 'deb https://openresty.org/package/debian bullseye openresty' | tee -a /etc/apt/sources.list.d/openresty.list \
     && apt-get update \
     && apt-get install -y --no-install-suggests openresty=${openresty_package_version} \
     && cd /usr/local/openresty \
@@ -98,6 +98,33 @@ RUN set -x \
         luarocks install ${lua_module}; \
       done
 
+ARG pagespeed_ngx_version=1.13.35.2-stable
+RUN set -x \
+    && export NGINX_RAW_VERSION=$(echo ${NGINX_VERSION} | sed 's/-.*//g') \
+    && export NPS_VERSION=${pagespeed_ngx_version} \
+    && export NPS_RELEASE_NUMBER=${NPS_VERSION/stable/} \
+    && cd /usr/local/src/nginx \
+    && curl -fSL https://github.com/apache/incubator-pagespeed-ngx/archive/v${NPS_VERSION}.zip -o v${NPS_VERSION}.zip \
+    && unzip v${NPS_VERSION}.zip \
+    && export nps_dir=$(find . -name "*pagespeed-ngx-${NPS_VERSION}" -type d) \
+    && cd "$nps_dir" \
+    && export psol_url=https://dl.google.com/dl/page-speed/psol/${NPS_RELEASE_NUMBER}x64.tar.gz \
+    && [ -e scripts/format_binary_url.sh ] && psol_url=$(scripts/format_binary_url.sh PSOL_BINARY_URL) \
+    && curl -fSL ${psol_url} -o ${NPS_RELEASE_NUMBER}x64.tar.gz \
+    && tar -xzvf $(basename ${psol_url}) \
+    && cd /usr/local/src/nginx \
+    && export configure_args=$(nginx -V 2>&1 | grep "configure arguments:" | awk -F 'configure arguments:' '{print $2}'); \
+    IFS=','; \
+    configure_args="${configure_args} --add-dynamic-module=./${nps_dir}"; \
+    unset IFS \
+    && eval ./configure ${configure_args} \
+    && make modules \
+    && cd /usr/local/src/nginx \
+    && cp $(pwd)/objs/ngx_pagespeed*.so /usr/lib/nginx/modules/
+
+RUN set -x \
+    && find /usr/lib/nginx/modules -type f -exec chmod 644 {} \;
+
 FROM nginx:${nginx_version}
 
 COPY --from=build /usr/local/bin      /usr/local/bin
@@ -128,20 +155,25 @@ RUN set -x \
       unzip \
       vim-tiny \
       libmaxminddb0 \
+      libgeoip1 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
     && ldconfig -v \
     && ls /etc/nginx/modules/*.so | grep -v debug \
     |  xargs -I{} sh -c 'echo "load_module {};" | tee -a  /etc/nginx/modules/all.conf' \
-    && sed -i -E 's|listen\s+80|&80|g' /etc/nginx/conf.d/default.conf \
     && ln -sf /dev/stdout /var/log/modsec_audit.log \
     && touch /var/run/nginx.pid \
     && mkdir -p /var/cache/nginx \
     && mkdir -p /var/cache/cache-heater \
-    && chown -R nginx:nginx /etc/nginx /var/log/nginx /var/cache/nginx /var/run/nginx.pid /var/log/modsec_audit.log /var/cache/cache-heater
+    && mkdir /var/ngx_pagespeed_cache \
+    && mkdir /var/ngx_pagespeed_log \
+    && chmod 777 /var/ngx_pagespeed_cache /var/ngx_pagespeed_log \
+    && chown -R nginx:nginx /etc/nginx /var/log/nginx /var/cache/nginx /var/run/nginx.pid /var/log/modsec_audit.log /var/cache/cache-heater /var/ngx_pagespeed_cache /var/ngx_pagespeed_log
 
-EXPOSE 8080 8443
+ENTRYPOINT ["/docker-entrypoint.sh"]
 
-USER nginx
+EXPOSE 80
 
-WORKDIR /etc/nginx
+STOPSIGNAL SIGQUIT
+
+CMD ["nginx", "-g", "daemon off;"]

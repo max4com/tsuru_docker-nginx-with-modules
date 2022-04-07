@@ -10,7 +10,7 @@ argument with a comma separated list of git repository URLs to be included in
 the image. Example:
 
 ```
-git clone https://github.com/tsuru/docker-nginx-with-modules.git
+git clone https://github.com/max4com/docker-nginx-with-modules.git
 cd docker-nginx-with-modules
 docker build --build-arg modules=https://github.com/vozlt/nginx-module-vts.git:v0.1.17,https://github.com/openresty/echo-nginx-module.git .
 ```
@@ -24,7 +24,7 @@ URLs.
 To build a flavor you can use the provided Makefile:
 
 ```
-make image flavor=tsuru nginx_version=1.16.1
+make image flavor=max4com nginx_version=1.16.1
 ```
 
 To build a flavor, `jq` is required, cf. [download section of jq](https://stedolan.github.io/jq/download/)
