@@ -10,7 +10,7 @@ RUN set -x \
        libexpat1-dev git curl build-essential libxml2 libxslt1.1 libxslt1-dev autoconf libtool libssl-dev \
        unzip libmaxminddb-dev libgeoip-dev uuid-dev
 
-ARG modsecurity_version=v3.0.6
+ARG modsecurity_version=v3.0.8
 RUN set -x \
     && git clone --depth 1 -b ${modsecurity_version} https://github.com/SpiderLabs/ModSecurity.git /usr/local/src/modsecurity \
     && cd /usr/local/src/modsecurity \
@@ -31,7 +31,7 @@ RUN set -x \
     && mv owasp-modsecurity-crs{-${owasp_modsecurity_crs_version#v},} \
     && cd -
 
-ARG openresty_package_version=1.19.9.1-1~bullseye1
+ARG openresty_package_version=1.21.4.1-1~bullseye1
 RUN set -x \
     && curl -sS https://openresty.org/package/pubkey.gpg | apt-key add - \
     && echo 'deb https://openresty.org/package/debian bullseye openresty' | tee -a /etc/apt/sources.list.d/openresty.list \
@@ -82,7 +82,7 @@ RUN set -x \
     && make modules \
     && cp -v objs/*.so /usr/lib/nginx/modules/
 
-ARG luarocks_version=3.3.1
+ARG luarocks_version=3.9.1
 RUN set -x \
     && curl -fSL "https://luarocks.org/releases/luarocks-${luarocks_version}.tar.gz" \
     |  tar -C /usr/local/src -xzvf- \
