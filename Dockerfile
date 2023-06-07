@@ -6,11 +6,11 @@ SHELL ["/bin/bash", "-c"]
 RUN set -x \
     && apt-get update \
     && apt-get install -y --no-install-suggests \
-       libluajit-5.1-dev libpam0g-dev zlib1g-dev libpcre3 libpcre3-dev \
-       libexpat1-dev git curl build-essential libxml2 libxslt1.1 libxslt1-dev autoconf libtool libssl-dev \
+       libluajit-5.1-dev libpam0g-dev zlib1g-dev libpcre3 libpcre3-dev libpcre2-dev \
+       libexpat1-dev git curl build-essential lsb-release libxml2 libxslt1.1 libxslt1-dev libyajl-dev libcurl4 libcurl4-openssl-dev liblua5.1-0 liblua5.1-0-dev autoconf libtool libssl-dev \
        unzip libmaxminddb-dev libgeoip-dev uuid-dev
 
-ARG modsecurity_version=v3.0.8
+ARG modsecurity_version=v3.0.9
 RUN set -x \
     && git clone --depth 1 -b ${modsecurity_version} https://github.com/SpiderLabs/ModSecurity.git /usr/local/src/modsecurity \
     && cd /usr/local/src/modsecurity \
@@ -21,20 +21,20 @@ RUN set -x \
     && make \
     && make install
 
-ARG owasp_modsecurity_crs_version=v3.2.0
+ARG owasp_modsecurity_crs_version=v3.3.4
 RUN set -x \
     && nginx_modsecurity_conf_dir="/usr/local/etc/modsecurity" \
     && mkdir -p ${nginx_modsecurity_conf_dir} \
     && cd ${nginx_modsecurity_conf_dir} \
-    && curl -fSL "https://github.com/SpiderLabs/owasp-modsecurity-crs/archive/${owasp_modsecurity_crs_version}.tar.gz" \
+    && curl -fSL "https://github.com/coreruleset/coreruleset/archive/${owasp_modsecurity_crs_version}.tar.gz" \
     |  tar -xvzf - \
-    && mv owasp-modsecurity-crs{-${owasp_modsecurity_crs_version#v},} \
+    && mv coreruleset{-${owasp_modsecurity_crs_version#v},} \
     && cd -
 
 ARG openresty_package_version=1.21.4.1-1~bullseye1
 RUN set -x \
-    && curl -sS https://openresty.org/package/pubkey.gpg | apt-key add - \
-    && echo 'deb https://openresty.org/package/debian bullseye openresty' | tee -a /etc/apt/sources.list.d/openresty.list \
+    && curl -fsSL https://openresty.org/package/pubkey.gpg | apt-key add - \
+    && echo "deb https://openresty.org/package/debian bullseye openresty" | tee -a /etc/apt/sources.list.d/openresty.list \
     && apt-get update \
     && apt-get install -y --no-install-suggests openresty=${openresty_package_version} \
     && cd /usr/local/openresty \
@@ -82,7 +82,7 @@ RUN set -x \
     && make modules \
     && cp -v objs/*.so /usr/lib/nginx/modules/
 
-ARG luarocks_version=3.9.1
+ARG luarocks_version=3.9.2
 RUN set -x \
     && curl -fSL "https://luarocks.org/releases/luarocks-${luarocks_version}.tar.gz" \
     |  tar -C /usr/local/src -xzvf- \
