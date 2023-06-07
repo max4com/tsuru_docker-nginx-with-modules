@@ -9,11 +9,26 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        nginx: [stable, stable-perl]
-        flavor: [max4com]
-        experimental: [false]
+        include:
+          - nginx: 1.22.1
+            nginx_tag: stable
+            flavor: max4com
+            experimental: false
+          - nginx: 1.22.1-perl
+            nginx_tag: stable-perl
+            flavor: max4com
+            experimental: false
+          - nginx: 1.21.4
+            nginx_tag: 1.21.4
+            flavor: max4com_full
+            experimental: false
+          - nginx: 1.21.4-perl
+            nginx_tag: 1.21.4-perl
+            flavor: max4com_full
+            experimental: false
     steps:
     - uses: actions/checkout@v3
+    - uses: docker/setup-qemu-action@v2
     - uses: docker/setup-buildx-action@v2
     - uses: actions/cache@v3
       with:
@@ -36,11 +51,12 @@ jobs:
         cache-to: type=local,dest=/tmp/.buildx-cache
         build-args: |
           nginx_version=${{ matrix.nginx }}
+          nginx_tag=${{ matrix.nginx_tag }}
           modules=${{ env.MODULES }}
           lua_modules=${{ env.LUA_MODULES }}
     - run: make test flavor=${{ matrix.flavor }} nginx_version=${{ matrix.nginx }}
     - run: echo NGINX_VERSION=${{ matrix.nginx }} >> $GITHUB_ENV
-    - run: echo PUSH_TAG=max4com/nginx:${{ matrix.nginx }} >> $GITHUB_ENV
+    - run: echo PUSH_TAG=max4com/nginx:${{ matrix.nginx_tag }} >> $GITHUB_ENV
     - run: echo MODULE_NAMES=$(docker run --rm max4com/nginx-pre-labels-${{ matrix.flavor }}:${{ matrix.nginx }} sh -c 'ls /etc/nginx/modules/*.so | grep -v debug | xargs -I{} basename {} .so | paste -sd "," -') >> $GITHUB_ENV
     - uses: docker/build-push-action@v3
       if: github.event_name != 'pull_request'
@@ -50,7 +66,9 @@ jobs:
         cache-from: type=local,src=/tmp/.buildx-cache
         cache-to: type=local,dest=/tmp/.buildx-cache
         labels: io.max4com.${{ env.NGINX_VERSION }}.nginx-modules=${{ env.MODULE_NAMES }}
+        platforms: linux/amd64
         build-args: |
           nginx_version=${{ matrix.nginx }}
+          nginx_tag=${{ matrix.nginx_tag }}
           modules=${{ env.MODULES }}
           lua_modules=${{ env.LUA_MODULES }}
