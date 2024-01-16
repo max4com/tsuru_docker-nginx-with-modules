@@ -7,24 +7,32 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: ${{ matrix.experimental }}
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         include:
-          - nginx: 1.22.1
+          - nginx: 1.24.0
             nginx_tag: stable
             flavor: max4com
             experimental: false
-          - nginx: 1.22.1-perl
+          - nginx: 1.24.0-perl
             nginx_tag: stable-perl
             flavor: max4com
+            experimental: false 
+          - nginx: 1.22.1
+            nginx_tag: 1.22.1
+            flavor: max4com_bp_1.22
+            experimental: false
+          - nginx: 1.22.1-perl
+            nginx_tag: 1.22.1-perl
+            flavor: max4com_bp_1.22
             experimental: false
           - nginx: 1.21.4
             nginx_tag: 1.21.4
-            flavor: max4com_full
+            flavor: max4com_full_bp_1.21
             experimental: false
           - nginx: 1.21.4-perl
             nginx_tag: 1.21.4-perl
-            flavor: max4com_full
+            flavor: max4com_full_bp_1.21
             experimental: false
     steps:
     - uses: actions/checkout@v3
@@ -41,6 +49,11 @@ jobs:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_PASSWORD }}
     - run: |
+        echo EXT_MODSECURITY_VERSION=$(jq -er '.flavors[] | select(.name == "${{ matrix.flavor }}") | .modsecurity_version' flavors.json) >> $GITHUB_ENV
+        echo EXT_OWASP_MODSECURITY_CRS_VERSION=$(jq -er '.flavors[] | select(.name == "${{ matrix.flavor }}") | .owasp_modsecurity_crs_version' flavors.json) >> $GITHUB_ENV
+        echo EXT_OPENRESTY_PACKAGE_VERSION=$(jq -er '.flavors[] | select(.name == "${{ matrix.flavor }}") | .openresty_package_version' flavors.json) >> $GITHUB_ENV
+        echo EXT_LUAROCKS_VERSION=$(jq -er '.flavors[] | select(.name == "${{ matrix.flavor }}") | .luarocks_version' flavors.json) >> $GITHUB_ENV
+        echo EXT_PAGESPEED_NGX_VERSION=$(jq -er '.flavors[] | select(.name == "${{ matrix.flavor }}") | .pagespeed_ngx_version' flavors.json) >> $GITHUB_ENV
         echo MODULES=$(jq -er '.flavors[] | select(.name == "${{ matrix.flavor }}") | .modules | join(",")' flavors.json) >> $GITHUB_ENV
         echo LUA_MODULES=$(jq -er '.flavors[] | select(.name == "${{ matrix.flavor }}") | [ .lua_modules[]? ] | join(",")' flavors.json) >> $GITHUB_ENV
     - uses: docker/build-push-action@v3
@@ -52,6 +65,11 @@ jobs:
         build-args: |
           nginx_version=${{ matrix.nginx }}
           nginx_tag=${{ matrix.nginx_tag }}
+          modsecurity_version=${{ env.EXT_MODSECURITY_VERSION }}
+          owasp_modsecurity_crs_version=${{ env.EXT_OWASP_MODSECURITY_CRS_VERSION }}
+          openresty_package_version=${{ env.EXT_OPENRESTY_PACKAGE_VERSION }}
+          luarocks_version=${{ env.EXT_LUAROCKS_VERSION }}
+          pagespeed_ngx_version=${{ env.EXT_PAGESPEED_NGX_VERSION }}
           modules=${{ env.MODULES }}
           lua_modules=${{ env.LUA_MODULES }}
     - run: make test flavor=${{ matrix.flavor }} nginx_version=${{ matrix.nginx }}
@@ -70,5 +88,10 @@ jobs:
         build-args: |
           nginx_version=${{ matrix.nginx }}
           nginx_tag=${{ matrix.nginx_tag }}
+          modsecurity_version=${{ env.EXT_MODSECURITY_VERSION }}
+          owasp_modsecurity_crs_version=${{ env.EXT_OWASP_MODSECURITY_CRS_VERSION }}
+          openresty_package_version=${{ env.EXT_OPENRESTY_PACKAGE_VERSION }}
+          luarocks_version=${{ env.EXT_LUAROCKS_VERSION }}
+          pagespeed_ngx_version=${{ env.EXT_PAGESPEED_NGX_VERSION }}
           modules=${{ env.MODULES }}
           lua_modules=${{ env.LUA_MODULES }}

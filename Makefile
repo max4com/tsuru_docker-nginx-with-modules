@@ -20,9 +20,14 @@ endif
 
 .PHONY: image
 image: check-required-vars
+	modsecurity_version=$$(jq -er '.flavors[] | select(.name == "$(flavor)") | .modsecurity_version' flavors.json) && \
+	owasp_modsecurity_crs_version=$$(jq -er '.flavors[] | select(.name == "$(flavor)") | .owasp_modsecurity_crs_version' flavors.json) && \
+	openresty_package_version=$$(jq -er '.flavors[] | select(.name == "$(flavor)") | .openresty_package_version' flavors.json) && \
+	luarocks_version=$$(jq -er '.flavors[] | select(.name == "$(flavor)") | .luarocks_version' flavors.json) && \
+	pagespeed_ngx_version=$$(jq -er '.flavors[] | select(.name == "$(flavor)") | .pagespeed_ngx_version' flavors.json) && \
 	modules=$$(jq -er '.flavors[] | select(.name == "$(flavor)") | .modules | join(",")' flavors.json) && \
 	lua_modules=$$(jq -er '.flavors[] | select(.name == "$(flavor)") | [ .lua_modules[]? ] | join(",")' flavors.json) && \
-	$(DOCKER) build -t max4com/nginx-pre-labels-$(flavor):$(nginx_version) --build-arg nginx_version=$(nginx_version) --build-arg modules="$$modules" --build-arg lua_modules="$$lua_modules" .
+	$(DOCKER) build -t max4com/nginx-pre-labels-$(flavor):$(nginx_version) --build-arg nginx_version=$(nginx_version) --build-arg modsecurity_version="$$modsecurity_version" --build-arg owasp_modsecurity_crs_version="$$owasp_modsecurity_crs_version" --build-arg openresty_package_version="$$openresty_package_version" --build-arg luarocks_version="$$luarocks_version" --build-arg pagespeed_ngx_version="$$pagespeed_ngx_version" --build-arg modules="$$modules" --build-arg lua_modules="$$lua_modules" .
 	module_names=$$($(DOCKER) run --rm max4com/nginx-pre-labels-$(flavor):$(nginx_version) sh -c 'ls /etc/nginx/modules/*.so | grep -v debug | xargs -I{} basename {} .so | paste -sd "," -') && \
 	echo "FROM max4com/nginx-pre-labels-$(flavor):$(nginx_version)" | $(DOCKER) build -t max4com/nginx:$(nginx_version) --label "io.max4com.$(nginx_version).nginx-modules=$$module_names" -
 
